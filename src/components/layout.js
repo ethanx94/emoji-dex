@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import Progress from "react-progress-2"
 
 import Header from "./header"
@@ -6,84 +6,76 @@ import CardTable from "./card-table"
 import "../static/layout.css"
 import "react-progress-2/main.css"
 
-class Layout extends React.Component {
-  state = {
-    emojiData: [],
-    filteredEmojiData: [],
-    isLoaded: false
+const Layout = () => {
+    const [emojiData, setEmojiData] = useState([]);
+    const [filteredEmojiData, setFilteredEmojiData] = useState([]);
+    const [isLoaded, setIsLoaded] = useState(false);
+
+  const filterEmojis = ({ target: { value }}) => {
+    setFilteredEmojiData(emojiData.filter(emojiData => emojiData.name.includes(value)))
   }
 
-  filterEmojis = (event) => {
-    const filteredEmojiData = this.state.emojiData.filter(emojiData => 
-      emojiData.name.includes(event.target.value))
-    this.setState({ filteredEmojiData })
+  const createReadableName = name => {
+    const splitName = !name.includes("_")
+      ? [name]
+      : name.split("_")
+      
+    return splitName.map(readableNamePart => readableNamePart[0].toUpperCase() + readableNamePart.slice(1))
+                    .join(" ");
   }
 
-  createReadableName = (name) => {
-    let splitName;
-    if (!name.includes("_")) {
-      splitName = [ name ]
-    } else {
-      splitName = name.split("_")
+  useEffect(() => {
+    const fetchEmojis = async () => {
+      Progress.show()
+      const response = await fetch("https://api.github.com/emojis");
+      const data = await response.json();
+      const emojiData = Object.keys(data).map(emojiName => {
+        const readableName = createReadableName(emojiName);   
+        return ({ 
+          name: emojiName, 
+          imgURL: data[emojiName], 
+          readableName
+        })
+      }) 
+      setEmojiData(emojiData);
+      setIsLoaded(true);
+      Progress.hide();
     }
-    
-    return splitName.map(readableNamePart => 
-      readableNamePart[0].toUpperCase() + readableNamePart.slice(1)
-    ).join(" ");
-  }
+    fetchEmojis();
+  }, [])
 
-  componentDidMount = () => {
-    Progress.show()
-    fetch("https://api.github.com/emojis")
-      .then(response => response.json())
-      .then((data) => {
-          const emojiData = Object.keys(data).map(emojiName => {
-            const readableName = this.createReadableName(emojiName);   
-
-            return ({ 
-              name: emojiName, 
-              imgURL: data[emojiName], 
-              readableName
-            })
-          }) 
-
-          this.setState({ emojiData, isLoaded: true })
-          Progress.hide()
-      });
-  }
-
-  render() {
-    return (
-      <div 
+  return (
+    <div 
+      style={{
+        display: "flex",
+        flexDirection: "column",
+      }}>
+      <Header 
+        siteTitle={`EmojiDex 😊`} 
+        siteDescription={`An index of GitHub emojis.`}
+        filterEmojis={filterEmojis}
+      />
+      <Progress.Component 
+        style={{height: "3px"}} 
+        thumbStyle={{background: "#FFC83D"}}/>
+      <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-        }}>
-        <Header 
-          siteTitle={`EmojiDex 😊`} 
-          siteDescription={`An index of GitHub emojis.`}
-          filterEmojis={this.filterEmojis}
-        />
-        <Progress.Component 
-          style={{height: "3px"}} 
-          thumbStyle={{background: "#FFC83D"}}/>
-        <div
-          style={{
-            margin: `0 auto`,
-            maxWidth: 960,
-            padding: `0px 1.0875rem 1.45rem`,
-            paddingTop: 0,
-            justifyItems: "center",
-            overflow: "auto",
-          }}
-        >
-          {this.state.isLoaded && <CardTable 
-            emojiData={this.state.emojiData} 
-            filteredEmojis={this.state.filteredEmojiData}/>}
-        </div>
+          margin: `0 auto`,
+          maxWidth: 960,
+          padding: `0px 1.0875rem 1.45rem`,
+          paddingTop: 0,
+          justifyItems: "center",
+          overflow: "auto",
+        }}
+      >
+        {isLoaded && (
+          <CardTable 
+            emojiData={emojiData} 
+            filteredEmojis={filteredEmojiData}
+          />)}
       </div>
-    )
-  }
+    </div>
+  )
 }
 
 export default Layout
